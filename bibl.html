@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Электронная библиотека</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .register-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .register-button:hover {
+            background-color: #45a049;
+        }
+
+        .footer-design {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 10px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .book {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fff;
+            transition: box-shadow 0.3s;
+        }
+
+        .book:hover {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="file"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        @media (max-width: 600px) {
+            .modal-content {
+                width: 90%;
+            }
+
+            .register-button {
+                padding: 8px 12px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+
+        @media (max-width: 400px) {
+            h1 {
+                font-size: 1.2em;
+            }
+
+            .book {
+                padding: 8px;
+            }
+
+            button, input[type="text"], input[type="email"], input[type="password"], input[type="file"] {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Электронная библиотека</h1>
+    <button class="register-button" id="registerButton">Регистрация</button>
+    <input type="text" id="bookTitle" placeholder="Название книги" required>
+    <input type="text" id="bookAuthor" placeholder="Автор книги" required>
+    <input type="file" id="bookFile" accept=".pdf, .epub, .fb2" required>
+    <button onclick="addBook()">Добавить книгу</button>
+    <div id="bookList"></div>
+    <h2>Зарегистрированные пользователи:</h2>
+    <div id="userList"></div>
+
+    <div id="registrationModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRegistrationModal()">&times;</span>
+            <h2>Регистрация</h2>
+            <form id="registrationForm" onsubmit="registerUser(event)">
+                <input type="text" id="username" placeholder="Имя пользователя" required>
+                <input type="email" id="email" placeholder="Email" required>
+                <input type="password" id="password" placeholder="Пароль" required>
+                <button type="submit">Зарегистрироваться</button>
+            </form>
+            <div id="registrationMessage"></div>
+        </div>
+    </div>
+
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle"></h2>
+            <p id="modalAuthor"></p>
+            <div id="modalViewer" style="width: 100%; height: 500px; overflow-y: scroll;"></div>
+        </div>
+    </div>
+
+    <div class="footer-design">Принадлежит Хисамиеву И.Р.</div>
+
+    <script>
+        const adminUsername = 'admin'; // Замените 'admin' на ваше имя пользователя администратора
+        let isAdmin = false;
+
+        document.getElementById('registerButton').onclick = () => {
+            document.getElementById('registrationModal').style.display = 'block';
+        }
+
+        function closeRegistrationModal() {
+            document.getElementById('registrationModal').style.display = 'none';
+            loadUsers();
+        }
+
+        function registerUser(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            users.push({ username, email, password });
+            localStorage.setItem('users', JSON.stringify(users));
+
+            // Проверка, является ли пользователь администратором
+            if (username === adminUsername) {
+                isAdmin = true; // Сделать пользователя администратором
+            }
+
+            document.getElementById('registrationMessage').textContent = 'Регистрация прошла успешно!';
+            document.getElementById('registrationForm').reset();
+            loadUsers();
+        }
+
+        function loadUsers() {
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '';
+            users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.textContent = `Имя: ${user.username}, Email: ${user.email}`;
+                userList.appendChild(userItem);
+            });
+        }
+
+        function loadBooks() {
+            const books = JSON.parse(localStorage.getItem('books')) || [];
+            books.forEach(book => addBookToList(book.title, book.author, book.file));
+        }
+
+        function addBook() {
+            if (!isAdmin) {
+                alert('Только администратор может добавлять книги.');
+                return;
+            }
+
+            const title = document.getElementById('bookTitle').value;
+            const author = document.getElementById('bookAuthor').value;
+            const fileInput = document.getElementById('bookFile');
+
+            if (title && author && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                addBookToList(title, author, file);
+                saveBookToLocalStorage(title, author, file);
+                document.getElementById('bookTitle').value = '';
+                document.getElementById('bookAuthor').value = '';
+                fileInput.value = '';
+            } else {
+                alert('Пожалуйста, заполните все поля.');
+            }
+        }
+
+        function addBookToList(title, author, file) {
+            const bookList = document.getElementById('bookList');
+            const bookItem = document.createElement('div');
+            bookItem.className = 'book';
+            bookItem.textContent = `Название: ${title}, Автор: ${author}`;
+            bookItem.onclick = () => openModal(title, author, file);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Удалить';
+            deleteButton.onclick = (e) => {
+                e.stopPropagation();
+                deleteBook(title);
+            };
+
+            bookItem.appendChild(deleteButton);
+            bookList.appendChild(bookItem);
+        }
+
+        function saveBookToLocalStorage(title, author, file) {
+            const books = JSON.parse(localStorage.getItem('books')) || [];
+            books.push({ title, author, file: URL.createObjectURL(file) });
+            localStorage.setItem('books', JSON.stringify(books));
+        }
+
+        function openModal(title, author, file) {
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            const registeredUsernames = users.map(user => user.username);
+            const isRegisteredUser = registeredUsernames.includes(
+                prompt('Пожалуйста, введите ваше имя пользователя для доступа к этой книге:')
+            );
+
+            if (!isRegisteredUser) {
+                alert('Вы должны быть зарегистрированным пользователем для просмотра книги.');
+                return;
+            }
+
+            document.getElementById("modalTitle").textContent = `Название: ${title}`;
+            document.getElementById("modalAuthor").textContent = `Автор: ${author}`;
+            document.getElementById("modalViewer").innerHTML = `<iframe style="width: 100%; height: 500px" src="${URL.createObjectURL(file)}"></iframe>`;
+            document.getElementById("myModal").style.display = "block"; 
+        }
+
+        function closeModal() {
+            document.getElementById("myModal").style.display = "none"; 
+        }
+
+        function deleteBook(title) {
+            const books = JSON.parse(localStorage.getItem('books')) || [];
+            const updatedBooks = books.filter(book => book.title !== title);
+            localStorage.setItem('books', JSON.stringify(updatedBooks));
+            loadBooks();
+        }
+
+        window.onload = () => {
+            loadBooks();
+            loadUsers();
+        }
+
+        window.onclick = (event) => {
+            if (event.target === document.getElementById("myModal")) {
+                closeModal(); 
+            }
+        }
+    </script>
+</body>
+</html>
